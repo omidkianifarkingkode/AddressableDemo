@@ -17,5 +17,18 @@ public interface IContentDownloader
         Action<float> onProgress = null,
         Action<bool, long> onComplete = null);
 
+    void GetDownloadSizeWithLabels(string label, Action<long> onComplete);
+    void GetDownloadSizeWithLabels(IEnumerable<string> labels, Action<long> onComplete);
+
+    AsyncOperationHandle DownloadDependenciesWithLabels(
+        string label,
+        Action<float> onProgress = null,
+        Action<bool, long> onComplete = null);
+
+    AsyncOperationHandle DownloadDependenciesWithLabels(
+        IEnumerable<string> labels,
+        Action<float> onProgress = null,
+        Action<bool, long> onComplete = null);
+
     bool IsDownloaded(string key);
 }

@@ -111,6 +111,58 @@ public sealed class AddressablesContentDownloader : IContentDownloader
         return DownloadDependencies(new[] { key }, onProgress, onComplete);
     }
 
+    public void GetDownloadSizeWithLabels(string label, Action<long> onComplete)
+        => GetDownloadSizeWithLabels(new[] { label }, onComplete);
+
+    public void GetDownloadSizeWithLabels(IEnumerable<string> labels, Action<long> onComplete)
+    {
+        if (labels == null || onComplete == null)
+        {
+            onComplete?.Invoke(-1);
+            return;
+        }
+
+        var handle = Addressables.GetDownloadSizeAsync(labels);
+        handle.Completed += op =>
+        {
+            long size = op.Status == AsyncOperationStatus.Succeeded ? op.Result : -1;
+            if (size >= 0)
+                _logger.Log($"[ContentDownloader] Size for labels {string.Join(", ", labels)}: {size.FormatBytes()}");
+            else
+                _logger.LogError("[ContentDownloader]", "Failed to get download size for labels.");
+
+            onComplete(size);
+        };
+    }
+
+    public AsyncOperationHandle DownloadDependenciesWithLabels(
+        string label,
+        Action<float> onProgress = null,
+        Action<bool, long> onComplete = null)
+        => DownloadDependenciesWithLabels(new[] { label }, onProgress, onComplete);
+
+    public AsyncOperationHandle DownloadDependenciesWithLabels(
+        IEnumerable<string> labels,
+        Action<float> onProgress = null,
+        Action<bool, long> onComplete = null)
+    {
+        var handle = Addressables.DownloadDependenciesAsync(labels, Addressables.MergeMode.Union);
+
+        if (onProgress != null) TrackProgress(handle, onProgress);
+
+        handle.Completed += op =>
+        {
+            bool success = op.Status == AsyncOperationStatus.Succeeded;
+            _logger.Log(success
+                ? $"[ContentDownloader] Labels download completed: {string.Join(", ", labels)}"
+                : $"[ContentDownloader] Labels download failed: {op.OperationException?.Message}");
+
+            onComplete?.Invoke(success, 0);
+        };
+
+        return handle;
+    }
+
     public bool IsDownloaded(string key)
     {
         // Reliable way: check download size sync (fast if cached)
