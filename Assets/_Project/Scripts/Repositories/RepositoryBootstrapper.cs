@@ -9,54 +9,57 @@ using Object = UnityEngine.Object;
 /// <typeparam name="TRepo">The repository type (e.g., OfferpackRepository)</typeparam>
 /// <typeparam name="TData">The data type the repo manages (e.g., OfferpackBundleData)</typeparam>
 [DisallowMultipleComponent]
-public class RepositoryBootstrapper<TRepo, TData> : MonoBehaviour
+public abstract class RepositoryBootstrapper<TRepo, TData> : MonoBehaviour
     where TRepo : AssetBundleRepository<TData>
     where TData : Object
 {
-    private static bool _isInitiated = false;
-
-    private TRepo _repository;
-
     [Header("Repository Configuration")]
-    [SerializeField] private string bundleAddressFormat = "{id}/bundle-data.asset";
+    [SerializeField] protected string bundleAddressFormat = "{id}/bundle-data.asset";
 
     [Header("Preload on Start")]
-    [SerializeField] private string[] preloadIds = new string[0];
+    [SerializeField] protected string[] preloadIds = new string[0];
 
     [Header("Logging")]
-    [SerializeField] private bool logEnabled = true;
-    [SerializeField] private Color logColor = new(0.7f, 0.85f, 1f);
+    [SerializeField] protected bool logEnabled = true;
+    [SerializeField] protected Color logColor = new(0.7f, 0.85f, 1f);
 
     private void Awake()
     {
-        // Singleton enforcement
-        if (_isInitiated)
+        var existingInstance = GetRepositoryInstance();
+
+        if (existingInstance != null)
         {
+            Debug.LogWarning($"[RepositoryBootstrapper] Duplicate bootstrapper for {typeof(TRepo).Name}. Destroying this one.");
             Destroy(gameObject);
             return;
         }
 
-        _isInitiated = true;
         DontDestroyOnLoad(gameObject);
-
-        _repository = (TRepo) Activator.CreateInstance(typeof(TRepo), bundleAddressFormat, logEnabled, logColor);
+        CreateRepository();
     }
 
     private void Start()
     {
-        if (preloadIds.Length > 0)
+        var repo = GetRepositoryInstance();
+
+        if (repo != null && preloadIds.Length > 0)
         {
-            _repository.PreloadAssets(preloadIds);
+            repo.PreloadAssets(preloadIds);
         }
     }
 
     private void OnDestroy()
     {
-        if (_repository != null)
+        var repo = GetRepositoryInstance();
+        if (repo != null)
         {
-            _repository.Dispose();
-            _repository = null;
-            Debug.Log($"[RepositoryHolder] {typeof(TRepo).Name} disposed.");
+            repo.Dispose();
+
+            Debug.Log($"[RepositoryBootstrapper] {typeof(TRepo).Name} disposed and singleton cleared.");
         }
     }
+
+    protected abstract void CreateRepository();
+
+    protected abstract TRepo GetRepositoryInstance();
 }

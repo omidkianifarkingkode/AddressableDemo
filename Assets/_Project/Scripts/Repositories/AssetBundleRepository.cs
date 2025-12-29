@@ -151,7 +151,7 @@ public abstract class AssetBundleRepository<T> : IDisposable where T : Object
     /// <summary>
     /// Releases all resources. Call when repository is no longer needed.
     /// </summary>
-    public void Dispose()
+    public virtual void Dispose()
     {
         UnloadAll();
 

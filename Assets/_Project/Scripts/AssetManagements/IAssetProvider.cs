@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading.Tasks;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using Object = UnityEngine.Object;
 
@@ -33,26 +32,4 @@ public interface IAssetProvider<T> where T : Object
     /// Unloads all loaded assets.
     /// </summary>
     void UnloadAll();
-}
-
-public static class AssetProviderExtensions
-{
-    public static Task<T> LoadAsync<T>(this IAssetProvider<T> provider, string key) where T : Object
-    {
-        var tcs = new TaskCompletionSource<T>();
-
-        provider.Load(
-            key,
-            asset =>
-            {
-                tcs.TrySetResult(asset);
-            },
-            onProgress: null,
-            onFailed: error =>
-            {
-                tcs.TrySetException(new Exception(error));
-            });
-
-        return tcs.Task;
-    }
 }
