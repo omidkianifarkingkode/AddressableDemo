@@ -61,8 +61,8 @@ public abstract class AssetBundleRepository<T> : IDisposable where T : Object
         if (string.IsNullOrWhiteSpace(id))
         {
             const string reason = "Invalid ID (null/empty/whitespace).";
-            OnAssetFailed?.Invoke(id, reason);
             onLoaded?.Invoke(id, null);
+            OnAssetFailed?.Invoke(id, reason);
             return;
         }
 

@@ -1,7 +1,5 @@
 using System.Collections.Generic;
-using System.Drawing;
 using UnityEngine;
-using UnityEngine.XR;
 
 public sealed class MainPanel : MonoBehaviour
 {
@@ -10,41 +8,44 @@ public sealed class MainPanel : MonoBehaviour
 
     private List<OfferpackUIElement> _offerpacks = new();
 
+    private void Awake()
+    {
+        // AddressablesUpdater.OnCataloadersUpdated += Start1;
+    }
+
     private void Start()
     {
         foreach (var offerpack in LiveopsManager.Instance.AvailableOfferpackIds)
         {
-            string id = offerpack; // Capture local copy
-            AddressablesContentDownloader.Instance.GetDownloadSize(id, (size) =>
-            {
-                Debug.Log($"Offerpack '{id}' download size: {size.FormatBytes()}");
-                if (size <= 0)
+            //AddressablesContentDownloader.Instance.GetDownloadSizeWithLabels(offerpack,
+            //    (size) =>
+            //    {
+            //        Debug.Log($"{offerpack} size:{size.FormatBytes()}");
+            //    });
+
+            //AddressablesContentDownloader.Instance.DownloadDependenciesWithLabels(offerpack,
+            //    (progress) =>
+            //    {
+            //        Debug.Log($"{offerpack} progress:{progress}");
+            //    },
+            //    (compelted, size) =>
+            //    {
+            //        Debug.Log($"{offerpack} iscomplete:{compelted}");
+            //    });
+
+            OfferpackRepository.Instance.GetAsset(offerpack,
+                onLoaded: (id, data) =>
                 {
-                    OfferpackRepository.Instance.GetAsset(offerpack, 
-                        onLoaded: (id, data) =>
-                        {
-                            if (data == null)
-                                return;
+                    if (data == null)
+                        return;
 
-                            var offerpackElement = Instantiate(_templateOfferpack, _offerpackContainer);
-                            offerpackElement.gameObject.SetActive(true);
-                            offerpackElement.SetData(data, () => OnOfferClicked(id, data));
+                    var offerpackElement = Instantiate(_templateOfferpack, _offerpackContainer);
+                    offerpackElement.gameObject.SetActive(true);
+                    offerpackElement.SetData(data, () => OnOfferClicked(id, data));
 
-                            _offerpacks.Add(offerpackElement);
-                        }, 
-                        onProgress: (id, progress) => { Debug.Log($"{id} -> {progress}"); });
-                }
-                else
-                {
-                    AddressablesContentDownloader.Instance.DownloadDependencies(offerpack,
-                        onProgress: (progress) => { Debug.Log($"{offerpack} -> progress:{progress}"); },
-                        onComplete: (done, size) => { Debug.Log($"{offerpack} -> done:{done}, size:{size}"); });
-                }
-            });
-
-
-
-            
+                    _offerpacks.Add(offerpackElement);
+                },
+                onProgress: (id, progress) => { });
         }
     }
 

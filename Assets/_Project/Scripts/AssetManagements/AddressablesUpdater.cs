@@ -2,6 +2,10 @@
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.AddressableAssets.ResourceLocators;
+using System;
+
+
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -11,32 +15,63 @@ public class AddressablesUpdater : MonoBehaviour
 {
     [SerializeField] private bool checkOnStart = true;
 
+    public static event Action OnCataloadersUpdated;
+
     private void Start()
     {
         if (checkOnStart)
+        {
             CheckForCatalogUpdates();
+        }
     }
 
-    public async void CheckForCatalogUpdates()
+    public void CheckForCatalogUpdates()
     {
-        var checkHandle = Addressables.CheckForCatalogUpdates();
-        await checkHandle.Task;
+        // Step 1: Check for catalog updates
+        AsyncOperationHandle<List<string>> checkHandle = Addressables.CheckForCatalogUpdates();
 
-        if (checkHandle.Status == AsyncOperationStatus.Succeeded && checkHandle.Result.Count > 0)
+        checkHandle.Completed += handle =>
         {
-            Debug.Log($"[AddressablesUpdater] {checkHandle.Result.Count} catalog(s) need updating.");
+            if (handle.Status == AsyncOperationStatus.Succeeded)
+            {
+                if (handle.Result != null && handle.Result.Count > 0)
+                {
+                    Debug.Log($"[AddressablesUpdater] {handle.Result.Count} catalog(s) need updating.");
 
-            var updateHandle = Addressables.UpdateCatalogs(checkHandle.Result);
-            await updateHandle.Task;
+                    // Step 2: Update the catalogs if needed
+                    AsyncOperationHandle<List<IResourceLocator>> updateHandle =
+                        Addressables.UpdateCatalogs(handle.Result);
 
-            Debug.Log("[AddressablesUpdater] Catalogs updated successfully.");
-        }
-        else
-        {
-            Debug.Log("[AddressablesUpdater] All catalogs are up to date.");
-        }
+                    updateHandle.Completed += updateOp =>
+                    {
+                        if (updateOp.Status == AsyncOperationStatus.Succeeded)
+                        {
+                            Debug.Log("[AddressablesUpdater] Catalogs updated successfully.");
 
-        Addressables.Release(checkHandle);
+                            OnCataloadersUpdated?.Invoke();
+                        }
+                        else
+                        {
+                            Debug.LogError("[AddressablesUpdater] Failed to update catalogs: " + updateOp.OperationException);
+                        }
+
+                        // Always release the update handle
+                        Addressables.Release(updateOp);
+                    };
+                }
+                else
+                {
+                    Debug.Log("[AddressablesUpdater] All catalogs are up to date.");
+                }
+            }
+            else
+            {
+                Debug.LogError("[AddressablesUpdater] Failed to check for catalog updates: " + handle.OperationException);
+            }
+
+            // Always release the check handle
+            Addressables.Release(handle);
+        };
     }
 
 #if UNITY_EDITOR
@@ -52,7 +87,6 @@ public class AddressablesUpdater : MonoBehaviour
             Debug.LogWarning("[Addressables] Failed to clear cache (may be in use).");
         }
 
-        // Optional: Also clear Addressables internal cache
         Addressables.ClearResourceLocators();
         Debug.Log("[Addressables] Resource locators cleared.");
     }
@@ -62,9 +96,13 @@ public class AddressablesUpdater : MonoBehaviour
     {
         var updater = FindObjectOfType<AddressablesUpdater>();
         if (updater != null)
+        {
             updater.CheckForCatalogUpdates();
+        }
         else
+        {
             Debug.LogWarning("No AddressablesUpdater found in scene.");
+        }
     }
 #endif
 }
